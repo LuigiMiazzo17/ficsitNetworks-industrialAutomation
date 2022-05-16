@@ -5,7 +5,7 @@ function getRequest(uuid, port, powPil, nSw, verbose)
     nc:send(uuid, port, "getState", powPil, tonumber(nSw))
     nc:open(port)
     event.listen(nc)
-    
+
     while true do
         e, s, sender, port, state = event.pull()
         if e == "NetworkMessage" then
@@ -24,7 +24,7 @@ function setRequest(uuid, port, powPil, nSw, newState, verbose)
     nc:send(uuid, port, "setState", powPil, tonumber(nSw), newState)
     nc:open(port)
     event.listen(nc)
-    
+
     while true do
         e, s, sender, port, state = event.pull()
         if e == "NetworkMessage" then

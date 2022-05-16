@@ -144,17 +144,17 @@ powerPillar.SE:add("SE01", "6DD8B54B4546B877BFB2DBB46170F7C3")
 powerPillar.SE:add("SE02", "2B1FEE0444BDACC35AB2E895D8B1D2BD")
 powerPillar.SE:add("SE03", "6173426C4712B04987A7498C2F823BFA")
 powerPillar.SE:add("SE04", "8D20CD9945FC16A39E0B668794CD100B")
-                                                            
+
 powerPillar.SE:add("SE05", "87CB2D1D4B5FBA48653E3D9FC6849117")
 powerPillar.SE:add("SE06", "9CCCD18A45517F4F354C88B9D313327D")
 powerPillar.SE:add("SE07", "C56A229D4CB596971CF50289A019DA65")
 powerPillar.SE:add("SE08", "409868484E459CDC3015A2BA6A3F1B40")
-                                                            
+
 powerPillar.SE:add("SE09", "8D01574748260F83200436A311A97A61")
 powerPillar.SE:add("SE10", "479A78D34BF2D46E559A1FAC0C689E3B")
 powerPillar.SE:add("SE11", "472227D8468F5F3B41D52A9803098FBB")
 powerPillar.SE:add("SE12", "772B255B44DCFFF5D4D2FCA4C27AB715")
-                                                            
+
 powerPillar.SE:add("SE13", "A5007D044908305C5BF50A9FDC1E382C")
 powerPillar.SE:add("SE14", "C70FC6C14861C9D9D9837FAF4DAB86F9")
 powerPillar.SE:add("SE15", "C880CA03494F4B2620CCB68683246E9D")
@@ -180,10 +180,10 @@ while true do
     if method == "getState" then
       status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
       nc:send(sender, 420, status)
-    end  
+    end
     if method == "setState" then
       powerPillar[pwPil][tonumber(swNumber)]:setStatus(payload)
       nc:send(sender, 420, status)
-    end             
+    end
   end
 end
