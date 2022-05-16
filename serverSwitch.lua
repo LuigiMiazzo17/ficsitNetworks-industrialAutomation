@@ -167,23 +167,31 @@ nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
 nc:open(420)
 event.listen(nc)
 
-while true do
-  e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
+function listenNetwork()
+    while true do
+        e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
 
-  if e == "NetworkMessage" then
-    print("Sender: " .. sender)
-    print("Port: " .. port)
-    print("Method: " .. (method == nil and "nil" or method))
-    print("powerPillar: " .. (pwPil == nil and "nil" or pwPil))
-    print("swNumber: " .. (swNumber == nil and "nil" or swNumber))
-    print("Payload: " .. tostring(payload == nil and "nil" or payload))
-    if method == "getState" then
-      status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
-      nc:send(sender, 420, status)
-    end  
-    if method == "setState" then
-      powerPillar[pwPil][tonumber(swNumber)]:setStatus(payload)
-      nc:send(sender, 420, status)
-    end             
-  end
+        if e == "NetworkMessage" then
+            print("Sender: " .. sender)
+            print("Port: " .. port)
+            print("Method: " .. (method == nil and "nil" or method))
+            print("powerPillar: " .. (pwPil == nil and "nil" or pwPil))
+            print("swNumber: " .. (swNumber == nil and "nil" or swNumber))
+            print("Payload: " .. tostring(payload == nil and "nil" or payload))
+            if method == "getState" then
+            status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
+            nc:send(sender, 420, status)
+            end  
+            if method == "setState" then
+            powerPillar[pwPil][tonumber(swNumber)]:setStatus(payload)
+            nc:send(sender, 420, status)
+            end             
+        end
+    end
 end
+
+--------------------------------------------------------------------------------
+-- Main Functions
+
+
+listenNetwork()
