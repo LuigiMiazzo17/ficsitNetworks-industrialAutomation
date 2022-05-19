@@ -18,9 +18,9 @@ local Switch = {}
 Switch.__index = Switch
 
 setmetatable(Switch, {
-    __call = function (cls, ...)
-    return cls.new(...)
-end,
+    __call = function(cls, ...)
+        return cls.new(...)
+    end,
 })
 
 function Switch.new(_name, _uuid)
@@ -28,7 +28,6 @@ function Switch.new(_name, _uuid)
     self.name = _name
     self.uuid = _uuid
     self.comp = component.proxy(_uuid)
-    self.prevState = self.comp.isSwitchOn
     return self
 end
 
@@ -38,35 +37,34 @@ function Switch:toggle()
 
     --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
 
-    self.prevState = not prevState
     if DEBUG then self:getStatus() end
 end
 
 -- Powers OFF a Switch
 function Switch:powerOff()
+    local prevState = self.comp.isSwitchOn
     self.comp.isSwitchOn = false
 
-    if self.prevState == true then
+    if prevState == true then
 
         --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
 
     end
 
-    self.prevState = false
     if DEBUG then self:getStatus() end
 end
 
 -- Powers ON a Switch
 function Switch:powerOn()
+    local prevState = self.comp.isSwitchOn
     self.comp.isSwitchOn = true
 
-    if self.prevState == false then
+    if prevState == false then
 
         --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
 
     end
 
-    self.prevState = true
     if DEBUG then self:getStatus() end
 end
 
@@ -76,15 +74,15 @@ function Switch:print()
 end
 
 function Switch:setStatus(state)
+    local prevState = self.comp.isSwitchOn
     self.comp.isSwitchOn = state
 
-    if self.prevState == not state then
+    if prevState == not state then
 
         --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
 
     end
 
-    self.prevState = state
     if DEBUG then self:getStatus() end
 end
 
@@ -101,9 +99,9 @@ local PowerPillar = {}
 PowerPillar.__index = PowerPillar
 
 setmetatable(PowerPillar, {
-    __call = function (cls, ...)
-    return cls.new(...)
-end,
+    __call = function(cls, ...)
+        return cls.new(...)
+    end,
 })
 
 function PowerPillar.new(_name)
@@ -161,7 +159,7 @@ end
 --------------------------------------------------------------------------------
 -- Init PowerPillars
 
-powerPillar = {
+local powerPillar = {
     SE = PowerPillar("SE"),
     SW = PowerPillar("SW"),
     NE = PowerPillar("NE"),
@@ -259,14 +257,14 @@ powerPillar.NW:add("NW16", "97EAF5E540DDF4B43EB2069C430D64BF")
 --------------------------------------------------------------------------------
 -- Network Functions
 
-nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
-protocolPort = 420
+local nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
+local protocolPort = 420
 nc:open(protocolPort)
 event.listen(nc)
 
-function listenNetwork()
+local function listenNetwork()
     while true do
-        e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
+        local e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
 
         if e == "NetworkMessage" then
             print("Sender: " .. sender)
@@ -280,7 +278,7 @@ function listenNetwork()
             -- method getState
 
             if method == "getState" then
-                status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
+                local status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
                 nc:send(sender, protocolPort, status)
             end
 
