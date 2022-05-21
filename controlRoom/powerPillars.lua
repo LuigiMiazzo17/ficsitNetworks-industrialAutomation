@@ -131,9 +131,7 @@ function PpControl.new(_name, _uuid)
         local light2 = self.comp:getModule(LIGHT_X_POS[math.ceil(i / 8)], LIGHT_Y_POS[(i + 3) % 4 + 1], 2 - (math.ceil(i / 4) + 1) % 2)
         local display = self.comp:getModule(DISPLAY_X_POS[math.ceil(i / 8)], DISPLAY_Y_POS[(i + 3) % 4 + 1], 2 - (math.ceil(i / 4) + 1) % 2)
         local switch = self.comp:getModule(SWITCH_X_POS[(i + 7) % 8 + 1], SWITCH_Y_POS[math.ceil(i / 8)], Panel.LOWER)
-        local newSwObj = SwControl(swName, light1, light2, display, switch)
-        newSwObj:setState("ControlPanel")
-        table.insert(self, newSwObj)
+        table.insert(self, SwControl(swName, light1, light2, display, switch))
     end
 
     self.display.size = 100
