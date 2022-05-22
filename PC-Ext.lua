@@ -88,7 +88,7 @@ powerPillar = {
 
 --SE
 
-powerPillar.SE:add("SE01", {"SE01-C1", "SE01-C2"}, {"D34428BE4E81604B60655CB20C845B13", "638661B64AFAAFD4A764D4A266DE93C5"})
+powerPillar.SE:add("SE01", {"SE01-C1", "SE01-C2"}, {"9A46408746C70DCC5DE2BDB7B60E5F8B", "826B7C1E4B0962103D0D2F864AECE64A"})
 
 --------------------------------------------------------------------------------
 -- Network Functions
@@ -113,20 +113,22 @@ function listenNetwork()
             print("powerPillar: " .. (pwPil == nil and "nil" or pwPil))
             print("swNumber: " .. (swNumber == nil and "nil" or swNumber))
             print("Payload: " .. tostring(payload == nil and "nil" or payload))
-            print("-------------------------------------------------------------")
+
             
             ----------------------------------------------------------------------
             -- method getIfSyncted
 
-            if method == "getIfSyncted" then
+            if method == "getState" then
                 status = {}
                 isSynced = true
-                for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
-                    status[i] = powerPillar[pwPil][tonumber(swNumber)][i]:getStatus()
-                end
-                for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
-                    if status[1] == not status[i] then
-                        isSynced = false
+                if powerPillar[pwPil][tonumber(swNumber)] ~= nil then 
+                    for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
+                        status[i] = powerPillar[pwPil][tonumber(swNumber)][i]:getStatus()
+                    end
+                    for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
+                        if status[1] == not status[i] then
+                            isSynced = false
+                        end
                     end
                 end
                 nc:send(sender, protocolPort, isSynced, status[1])
@@ -135,13 +137,28 @@ function listenNetwork()
             ----------------------------------------------------------------------
             -- method setToAllState
 
-            if method == "setToAllState" then
-                for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
-                    powerPillar[pwPil][tonumber(swNumber)][i]:setStatus(payload)
+            if method == "postState" then
+                if powerPillar[pwPil][tonumber(swNumber)] ~= nil then 
+                    for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
+                        powerPillar[pwPil][tonumber(swNumber)][i]:setStatus(payload)
+                    end
                 end
-                nc:send(sender, protocolPort, status)
+                status = {}
+                isSynced = true
+                if powerPillar[pwPil][tonumber(swNumber)] ~= nil then 
+                    for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
+                        status[i] = powerPillar[pwPil][tonumber(swNumber)][i]:getStatus()
+                    end
+                    for i in pairs(powerPillar[pwPil][tonumber(swNumber)]) do 
+                        if status[1] == not status[i] then
+                            isSynced = false
+                        end
+                    end
+                end
+                nc:send(sender, protocolPort, isSynced, status[1])
             end
         end
+        print("-------------------------------------------------------------")
     end
 end
 

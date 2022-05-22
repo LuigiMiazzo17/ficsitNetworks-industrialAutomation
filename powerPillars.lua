@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 -- Helper functions
-DEBUG = true
+DEBUG = false
 
 function table.containsType(table, elementType)
     for _, value in pairs(table) do
@@ -31,58 +31,13 @@ function Switch.new(_name, _uuid)
     return self
 end
 
--- Toggles the Switch
-function Switch:toggle()
-    self.comp.isSwitchOn = not self.comp.isSwitchOn
-
-    --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
-
-    if DEBUG then self:getStatus() end
-end
-
--- Powers OFF a Switch
-function Switch:powerOff()
-    local prevState = self.comp.isSwitchOn
-    self.comp.isSwitchOn = false
-
-    if prevState == true then
-
-        --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
-
-    end
-
-    if DEBUG then self:getStatus() end
-end
-
--- Powers ON a Switch
-function Switch:powerOn()
-    local prevState = self.comp.isSwitchOn
-    self.comp.isSwitchOn = true
-
-    if prevState == false then
-
-        --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
-
-    end
-
-    if DEBUG then self:getStatus() end
-end
-
 -- Prints Switch name and uuid
 function Switch:print()
     print(string.format("(%s --> \'%s\' = %s)\n", self.name, self.uuid, self.prevState))
 end
 
 function Switch:setStatus(state)
-    local prevState = self.comp.isSwitchOn
     self.comp.isSwitchOn = state
-
-    if prevState == not state then
-
-        --SEND NETWORK MESSAGE TO CHANGE ALL CHILDREN STATE
-
-    end
-
     if DEBUG then self:getStatus() end
 end
 
@@ -113,47 +68,6 @@ end
 -- Add Switch to the PowerPillar
 function PowerPillar:add(_name, _uuid)
     table.insert(self, Switch(_name, _uuid))
-end
-
--- Powers ON all switches in PowerPillar
-function PowerPillar:powerOnAll()
-    for _, v in ipairs(self) do
-        v:powerOn()
-    end
-end
-
--- Powers OFF all switches in PowerPillar
-function PowerPillar:powerOffAll()
-    for _, v in ipairs(self) do
-        v:powerOff()
-    end
-end
-
--- Toggles all switches in PowerPillar
-function PowerPillar:toggleAll()
-    for _, v in ipairs(self) do
-        v:toggle()
-    end
-end
-
--- Prints all switches status in PowerPillar
-function PowerPillar:getStatusAll()
-    for _, v in ipairs(self) do
-        v:getStatus()
-    end
-end
-
--- Prints PowerPillar Switches name and id
-function PowerPillar:print()
-    print(string.format("PowerPillar %s:\n", self.name))
-    if not table.containsType(self, "table") then
-        print(" - Empty PowerPillar!\n")
-    else
-        for _, v in ipairs(self) do
-            print(" - ")
-            v:print()
-        end
-    end
 end
 
 --------------------------------------------------------------------------------
@@ -261,12 +175,15 @@ local nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
 local protocolPort = 420
 nc:open(protocolPort)
 event.listen(nc)
+local counter = 0
 
 local function listenNetwork()
     while true do
         local e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
+        counter = counter + 1
 
         if e == "NetworkMessage" then
+            print("Request number: " .. counter)
             print("Sender: " .. sender)
             print("Port: " .. port)
             print("Method: " .. (method == nil and "nil" or method))
@@ -278,18 +195,19 @@ local function listenNetwork()
             -- method getState
 
             if method == "getState" then
-                local status = powerPillar[pwPil][tonumber(swNumber)]:getStatus()
-                nc:send(sender, protocolPort, status)
+                nc:send(sender, protocolPort, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
             end
 
             ----------------------------------------------------------------------
             -- method setState
 
-            if method == "setState" then
+            if method == "postState" then
                 powerPillar[pwPil][tonumber(swNumber)]:setStatus(payload)
+                event.pull(0.0)
                 nc:send(sender, protocolPort, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
             end
         end
+        print("--------------------------------------------------------------------------------")
     end
 end
 

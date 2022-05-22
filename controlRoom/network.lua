@@ -72,7 +72,7 @@ function setToAllStateRequest(uuid, port, powPil, nSw, newState, verbose)
     event.listen(nc)
 
     while true do
-        local e, s, sender, port, state = event.pull(5)
+        local e, s, sender, port, state = event.pull()
         if e == "NetworkMessage" then
             if verbose == true then
                 print("Changed state of " .. powPil .. nSw .. " to: " .. tostring(newState))

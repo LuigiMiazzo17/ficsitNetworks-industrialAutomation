@@ -20,8 +20,53 @@
 -- s: Stop
 
 --------------------------------------------------------------------------------
+-- Network functions
+
+local nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
+
+function getRequest(uuid, port, powPil, nSw, verbose)
+    verbose = verbose or false
+    nc:send(uuid, port, "getState", powPil, tonumber(nSw))
+    nc:open(port)
+    event.listen(nc)
+
+    while true do
+        local e, s, sender, port, state = event.pull()
+        if e == "NetworkMessage" then
+            if verbose == true then
+                print("State of " .. powPil .. nSw .. ": " .. tostring(state))
+            end
+            nc:close(port)
+            event.ignore(nc)
+            return state
+        end
+    end
+end
+
+function postRequest(_uuid, _port, _name, _newState, _verbose)
+    _verbose = _verbose or false
+    if _uuid == "" then return nil end
+    local powPil = string.sub(_name, 1, 2)
+    local nSw = string.sub(_name, 3)
+    nc:send(_uuid, _port, "postState", powPil, tonumber(nSw), _newState)
+    nc:open(_port)
+    event.listen(nc)
+
+    while true do
+        local e, s, sender, port, gotState = event.pull()
+        if e == "NetworkMessage" then
+            if _verbose == true then
+                print("Changed state of " .. powPil .. nSw .. " to: " .. tostring(gotState))
+            end
+            nc:close(port)
+            event.ignore(nc)
+            return gotState
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Const and Enums
-require "network" -- TODO: change this so that FIN likes it
 
 local LIGHT_X_POS = { 0, 10 }
 local LIGHT_Y_POS = { 9, 6, 3, 0 }
@@ -29,13 +74,17 @@ local DISPLAY_X_POS = { 1, 6 }
 local DISPLAY_Y_POS = { 9, 6, 3, 0 }
 local SWITCH_X_POS = { 1, 2, 3, 4, 6, 7, 8, 9 }
 local SWITCH_Y_POS = { 8, 5 }
+
+local SWITCHSERVERUUID = "129FA16E4CA48675504AEDAF6259570A"
+local EXTSERVERUUID = "7B4F99D74D13681D02632EBD0B443D9F"
 local PORT = 420
 
 local Panel = { UPPER = 2, CENTER = 1, LOWER = 0 }
 
 --------------------------------------------------------------------------------
 -- Helper functions
-local name
+
+local name = {}
 
 function name.encode(powPil, nSw)
     return powPil .. tostring(nSw)
@@ -49,6 +98,7 @@ end
 
 --------------------------------------------------------------------------------
 -- SwControl class
+
 local SwControl = {}
 SwControl.__index = SwControl
 
@@ -93,22 +143,23 @@ function SwControl:setState(source, state)
 
     if source == "ControlPanel" then
         self.warningLight:setColor(0, 1, 1, 0.01)
-        postRequest("", PORT, self.name, state) -- to PowerPillar
-        postRequest("", PORT, self.name, state) -- to Offsite
+        postRequest(SWITCHSERVERUUID, PORT, self.name, state) -- to PowerPillar
+        postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
     elseif source == "PowerPillar" then
         self.warningLight:setColor(1, 1, 0, 0.01)
         self.switch.state = state
-        postRequest("", PORT, self.name, state) -- to Offsite
+        postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
     else -- source == "Offsite"
         self.warningLight:setColor(1, 0, 1, 0.01)
         self.switch.state = state
-        postRequest("", PORT, self.name, state) -- to PowerPillar
+        postRequest(SWITCHSERVERUUID, PORT, self.name, state) -- to PowerPillar
     end
     return true
 end
 
 --------------------------------------------------------------------------------
 -- PpControl class
+
 local PpControl = {}
 PpControl.__index = PpControl
 
@@ -148,6 +199,7 @@ end
 
 --------------------------------------------------------------------------------
 -- Main
+
 local function main()
     local ppControl = {
         SE = PpControl("SE", component.findComponent("ppSE_Control")[1]),
@@ -168,6 +220,7 @@ local function main()
             for _, pp in pairs(ppControl) do
                 for _, sw in ipairs(pp) do
                     if sw.switch == eventSwitch then
+                        print("state of state" .. tostring(eventState))
                         sw:setState("ControlPanel", eventState)
                     end
                 end
