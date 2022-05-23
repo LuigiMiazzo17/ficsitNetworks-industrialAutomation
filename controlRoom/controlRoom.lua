@@ -23,44 +23,61 @@
 -- Network functions
 
 local nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
+requestNumber = 0
 
-function getRequest(uuid, port, powPil, nSw, verbose)
-    verbose = verbose or false
-    nc:send(uuid, port, "getState", powPil, tonumber(nSw))
-    nc:open(port)
+function getRequest(_uuid, _port, _name, _verbose)
+    _verbose = _verbose or false
+    requestNumber = requestNumber + 1
+    if _uuid == "" then return nil end
+    local powPil = string.sub(_name, 1, 2)
+    local nSw = string.sub(_name, 3)
+    nc:send(_uuid, _port, requestNumber, "getState", powPil, tonumber(nSw))
+    nc:open(_port)
     event.listen(nc)
 
     while true do
-        local e, s, sender, port, state = event.pull()
-        if e == "NetworkMessage" then
-            if verbose == true then
-                print("State of " .. powPil .. nSw .. ": " .. tostring(state))
+        local e, _, _, _, ackNumber, gotState = event.pull(0.5)
+        if (e == "NetworkMessage") and (ackNumber == requestNumber) then
+            if _verbose == true then
+                print("State of " .. powPil .. nSw .. ": " .. tostring(gotState))
             end
-            nc:close(port)
+            nc:close(_port)
             event.ignore(nc)
-            return state
+            return gotState
+        elseif e == nil then
+            print("Connection timeout on switch: " .. _name)
+            nc:open(_port)
+            event.listen(nc)
+            return nil
         end
     end
 end
 
 function postRequest(_uuid, _port, _name, _newState, _verbose)
     _verbose = _verbose or false
+    requestNumber = requestNumber + 1
     if _uuid == "" then return nil end
     local powPil = string.sub(_name, 1, 2)
     local nSw = string.sub(_name, 3)
-    nc:send(_uuid, _port, "postState", powPil, tonumber(nSw), _newState)
+    nc:send(_uuid, _port, requestNumber, "postState", powPil, tonumber(nSw), _newState)
     nc:open(_port)
     event.listen(nc)
 
     while true do
-        local e, s, sender, port, gotState = event.pull()
-        if e == "NetworkMessage" then
+        local e, _, _, _, ackNumber, gotState = event.pull(0.5)
+        if (e == "NetworkMessage") and (ackNumber == requestNumber) then
             if _verbose == true then
                 print("Changed state of " .. powPil .. nSw .. " to: " .. tostring(gotState))
             end
-            nc:close(port)
+            nc:close(_port)
             event.ignore(nc)
-            return gotState
+            return true
+
+        elseif e == nil then
+            print("Connection timeout on switch: " .. _name)
+            nc:open(_port)
+            event.listen(nc)
+            return false
         end
     end
 end
@@ -128,6 +145,8 @@ function SwControl:setState(source, state)
     if state == nil then
         if source == "ControlPanel" then
             state = self.switch.state
+        elseif source == "StopButton" then
+            state = false
         else
             return false
         end
@@ -143,12 +162,40 @@ function SwControl:setState(source, state)
 
     if source == "ControlPanel" then
         self.warningLight:setColor(0, 1, 1, 0.01)
-        postRequest(SWITCHSERVERUUID, PORT, self.name, state) -- to PowerPillar
-        postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
+        local PPState = postRequest(SWITCHSERVERUUID, PORT, self.name, state) -- to PowerPillar
+        local outState = postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
+        if (PPState ~= true) then
+            self.stateLight:setColor(1, 1, 0, 0.01)
+        end
+        if (outState ~= true) then
+            self.warningLight:setColor(1, 1, 0, 0.01)
+        end
+
     elseif source == "PowerPillar" then
-        self.warningLight:setColor(1, 1, 0, 0.01)
+        self.warningLight:setColor(0, 1, 1, 0.01)
+        event.ignore(self.switch)
         self.switch.state = state
-        postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
+        event.listen(self.switch)
+
+        local outState = postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
+        if (outState ~= true) then
+            self.warningLight:setColor(1, 1, 0, 0.01)
+        end
+
+    elseif source == "StopButton" then
+        event.ignore(self.switch)
+        self.switch.state = state
+        event.listen(self.switch)
+        self.warningLight:setColor(0, 1, 1, 0.01)
+        local PPState = postRequest(SWITCHSERVERUUID, PORT, self.name, state) -- to PowerPillar
+        local outState = postRequest(EXTSERVERUUID, PORT, self.name, state) -- to Offsite
+        if (PPState ~= true) then
+            self.stateLight:setColor(1, 1, 0, 0.01)
+        end
+        if (outState ~= true) then
+            self.warningLight:setColor(1, 1, 0, 0.01)
+        end
+
     else -- source == "Offsite"
         self.warningLight:setColor(1, 0, 1, 0.01)
         self.switch.state = state
@@ -191,9 +238,9 @@ function PpControl.new(_name, _uuid)
     return self
 end
 
-function PpControl:stop()
+function PpControl:stopEvent()
     for _, v in ipairs(self) do
-        v:setState("ControlPanel", false)
+        v:setState("StopButton")
     end
 end
 
@@ -201,6 +248,7 @@ end
 -- Main
 
 local function main()
+    print("Initializing...")
     local ppControl = {
         SE = PpControl("SE", component.findComponent("ppSE_Control")[1]),
         SW = PpControl("SW", component.findComponent("ppSW_Control")[1]),
@@ -208,10 +256,11 @@ local function main()
         NW = PpControl("NW", component.findComponent("ppNW_Control")[1])
     }
     event.clear()
+    print("Initialized!")
 
     -- Event loop
     while true do
-        local eventData = { event.pull() }
+        local eventData = { event.pull(0.5) }
         local eventType = eventData[1]
 
         if eventType == "ChangeState" then
@@ -220,7 +269,6 @@ local function main()
             for _, pp in pairs(ppControl) do
                 for _, sw in ipairs(pp) do
                     if sw.switch == eventSwitch then
-                        print("state of state" .. tostring(eventState))
                         sw:setState("ControlPanel", eventState)
                     end
                 end
@@ -231,7 +279,19 @@ local function main()
             local eventButton = eventData[2]
             for _, pp in pairs(ppControl) do
                 if eventButton == pp.stop then
-                    pp:stop()
+                    pp:stopEvent()
+                end
+            end
+            event.clear()
+        end
+        
+        if eventType == nil then
+            for _, pp in pairs(ppControl) do
+                for _, sw in ipairs(pp) do
+                    local eventState = getRequest(SWITCHSERVERUUID, PORT, sw.name)
+                    if sw.switch.state ~= eventState then
+                        sw:setState("PowerPillar", eventState)
+                    end
                 end
             end
         end

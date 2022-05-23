@@ -38,6 +38,7 @@ end
 
 function Switch:setStatus(state)
     self.comp.isSwitchOn = state
+    event.pull(0.0)
     if DEBUG then self:getStatus() end
 end
 
@@ -175,17 +176,19 @@ local nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
 local protocolPort = 420
 nc:open(protocolPort)
 event.listen(nc)
-local counter = 0
+event.clear()
+local requestCounter = 0
 
 local function listenNetwork()
     while true do
-        local e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
-        counter = counter + 1
+        local e, s, sender, port, ackNumber, method, pwPil, swNumber, payload = event.pull()
+        requestCounter = requestCounter + 1
 
-        if e == "NetworkMessage" then
-            print("Request number: " .. counter)
+        if eventType == "NetworkMessage" then
+            print("Request counter: " .. requestCounter)
             print("Sender: " .. sender)
             print("Port: " .. port)
+            print("Ack Number: " .. ackNumber)
             print("Method: " .. (method == nil and "nil" or method))
             print("powerPillar: " .. (pwPil == nil and "nil" or pwPil))
             print("swNumber: " .. (swNumber == nil and "nil" or swNumber))
@@ -195,7 +198,7 @@ local function listenNetwork()
             -- method getState
 
             if method == "getState" then
-                nc:send(sender, protocolPort, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
+                nc:send(sender, protocolPort, ackNumber, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
             end
 
             ----------------------------------------------------------------------
@@ -203,8 +206,7 @@ local function listenNetwork()
 
             if method == "postState" then
                 powerPillar[pwPil][tonumber(swNumber)]:setStatus(payload)
-                event.pull(0.0)
-                nc:send(sender, protocolPort, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
+                nc:send(sender, protocolPort, ackNumber, powerPillar[pwPil][tonumber(swNumber)]:getStatus())
             end
         end
         print("--------------------------------------------------------------------------------")

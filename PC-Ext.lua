@@ -97,18 +97,20 @@ nc = computer.getPCIDevices(findClass("NetworkCard"))[1]
 protocolPort = 420
 nc:open(protocolPort)
 event.listen(nc)
+event.clear()
 requestCounter = 0
 
 function listenNetwork()
     while true do
-        e, s, sender, port, method, pwPil, swNumber, payload = event.pull()
+        e, s, sender, port, ackNumber, method, pwPil, swNumber, payload = event.pull()
 
         if e == "NetworkMessage" then
             requestCounter = requestCounter + 1
 
-            print("RequestCounter: " .. requestCounter)
+            print("Request counter: " .. requestCounter)
             print("Sender: " .. sender)
             print("Port: " .. port)
+            print("Ack Number: " .. ackNumber)
             print("Method: " .. (method == nil and "nil" or method))
             print("powerPillar: " .. (pwPil == nil and "nil" or pwPil))
             print("swNumber: " .. (swNumber == nil and "nil" or swNumber))
@@ -131,7 +133,7 @@ function listenNetwork()
                         end
                     end
                 end
-                nc:send(sender, protocolPort, isSynced, status[1])
+                nc:send(sender, protocolPort, ackNumber, isSynced)
             end
 
             ----------------------------------------------------------------------
@@ -155,7 +157,8 @@ function listenNetwork()
                         end
                     end
                 end
-                nc:send(sender, protocolPort, isSynced, status[1])
+                nc:send(sender, protocolPort, ackNumber, isSynced)
+                print("returned: " .. tostring(isSynced))
             end
         end
         print("-------------------------------------------------------------")
